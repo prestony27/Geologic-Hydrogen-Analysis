@@ -1,5 +1,8 @@
 // Initialize map centered on continental US
-const map = L.map('map').setView([39.5, -98.35], 4);
+// Using Canvas renderer for better performance with many features
+const map = L.map('map', {
+    preferCanvas: true
+}).setView([39.5, -98.35], 4);
 
 // Base layer
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -41,14 +44,14 @@ function getHydrogenColor(score) {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-// Style function for hydrogen layer
+// Style function for hydrogen layer (no stroke for seamless appearance)
 function hydrogenStyle(feature) {
     const score = feature.properties.gridcode_float || 0;
     return {
         fillColor: getHydrogenColor(score),
         fillOpacity: 0.85,
-        color: '#555',
-        weight: 0.3
+        stroke: false,
+        weight: 0
     };
 }
 

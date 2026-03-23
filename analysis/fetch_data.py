@@ -89,6 +89,17 @@ def main():
 
     # Fetch Total Prospectivity (complete dataset)
     hydrogen_gdf = fetch_hydrogen_data(6)
+    print(f"  Raw features: {len(hydrogen_gdf)}")
+
+    # Merge adjacent polygons with same gridcode value
+    # This reduces feature count without changing visual appearance
+    print("  Dissolving polygons by gridcode...")
+    hydrogen_gdf = hydrogen_gdf.dissolve(by="gridcode", as_index=False)
+
+    # Recalculate gridcode_float from gridcode after dissolve
+    hydrogen_gdf["gridcode_float"] = hydrogen_gdf["gridcode"] / 100.0
+
+    print(f"  Merged features: {len(hydrogen_gdf)}")
 
     # Save to both locations
     hydrogen_gdf.to_file(DATA_DIR / "hydrogen_prospectivity.geojson", driver="GeoJSON")
