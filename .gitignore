@@ -5,13 +5,16 @@ __pycache__/
 venv/
 .venv/
 
-# Data files (large)
+# Data files (large/generated)
+data/
 *.zip
 *.tif
 *.shp
 *.dbf
 *.shx
 *.prj
+*.geojson
+*.csv
 
 # OS
 .DS_Store

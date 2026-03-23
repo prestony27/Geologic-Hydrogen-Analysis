@@ -23,21 +23,43 @@ HYDROGEN_LAYERS = {
 }
 
 
-def fetch_arcgis_layer(url: str, layer_id: int = None, max_records: int = 5000) -> gpd.GeoDataFrame:
-    """Fetch a layer from an ArcGIS FeatureServer as a GeoDataFrame."""
+def fetch_arcgis_layer(url: str, layer_id: int = None, max_records: int = 5000, use_geojson: bool = True) -> gpd.GeoDataFrame:
+    """Fetch a layer from an ArcGIS FeatureServer/MapServer as a GeoDataFrame."""
     query_url = f"{url}/{layer_id}/query" if layer_id else f"{url}/query"
 
     params = {
         "where": "1=1",
         "outFields": "*",
-        "f": "geojson",
+        "returnGeometry": "true",
+        "f": "geojson" if use_geojson else "json",
         "resultRecordCount": max_records,
+        "outSR": "4326",
     }
 
     response = requests.get(query_url, params=params)
     response.raise_for_status()
+    data = response.json()
 
-    return gpd.GeoDataFrame.from_features(response.json()["features"], crs="EPSG:4326")
+    if use_geojson and "features" in data:
+        return gpd.GeoDataFrame.from_features(data["features"], crs="EPSG:4326")
+    elif "features" in data:
+        # Esri JSON format - convert to GeoDataFrame
+        from shapely.geometry import shape, Polygon, MultiPolygon
+        features = []
+        for feat in data["features"]:
+            geom = feat.get("geometry", {})
+            props = feat.get("attributes", {})
+            if "rings" in geom:
+                # Esri polygon format
+                rings = geom["rings"]
+                if len(rings) == 1:
+                    poly = Polygon(rings[0])
+                else:
+                    poly = Polygon(rings[0], rings[1:])
+                features.append({"geometry": poly, **props})
+        return gpd.GeoDataFrame(features, crs="EPSG:4326", geometry="geometry")
+    else:
+        raise ValueError(f"Unexpected response format: {list(data.keys())}")
 
 
 def fetch_hydrogen_data(layer_id: int = 6) -> gpd.GeoDataFrame:
@@ -47,9 +69,11 @@ def fetch_hydrogen_data(layer_id: int = 6) -> gpd.GeoDataFrame:
 
 
 def fetch_congressional_districts() -> gpd.GeoDataFrame:
-    """Fetch congressional district boundaries."""
+    """Fetch congressional district boundaries from Census Bureau."""
     print("Fetching congressional districts...")
-    return fetch_arcgis_layer(DISTRICTS_SERVICE)
+    # Use Census Bureau cartographic boundary file (simpler, more reliable)
+    url = "https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_cd118_500k.zip"
+    return gpd.read_file(url)
 
 
 def main():
