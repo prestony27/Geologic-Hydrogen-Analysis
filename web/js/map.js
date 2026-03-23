@@ -71,7 +71,8 @@ fetch('data/hydrogen_prospectivity.geojson')
     .then(response => response.json())
     .then(data => {
         hydrogenLayer = L.geoJSON(data, {
-            style: hydrogenStyle
+            style: hydrogenStyle,
+            smoothFactor: 0  // Disable path simplification to prevent gaps at low zoom
         }).addTo(map);
         console.log(`Loaded ${data.features.length} hydrogen features`);
     })
