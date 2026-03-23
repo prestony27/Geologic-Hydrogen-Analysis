@@ -4,6 +4,121 @@ const map = L.map('map', {
     preferCanvas: true
 }).setView([39.5, -98.35], 4);
 
+// Congress data lookup tables
+let fipsToState = {};
+let senatorsByState = {};   // "CO" -> [{name, party}, ...]
+let repsByDistrict = {};    // "CO-4" -> {name, party}
+let congressDataLoaded = false;
+
+// Load FIPS mapping and legislators data
+async function loadCongressData() {
+    try {
+        const [fipsResponse, legislatorsResponse] = await Promise.all([
+            fetch('data/fips-states.json'),
+            fetch('data/legislators-current.json')
+        ]);
+
+        fipsToState = await fipsResponse.json();
+        const legislators = await legislatorsResponse.json();
+
+        buildLegislatorLookups(legislators);
+        congressDataLoaded = true;
+        console.log('Congress data loaded:', Object.keys(senatorsByState).length, 'states,', Object.keys(repsByDistrict).length, 'districts');
+    } catch (err) {
+        console.error('Error loading congress data:', err);
+    }
+}
+
+function buildLegislatorLookups(legislators) {
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const leg of legislators) {
+        const terms = leg.terms || [];
+        // Get current term (last term that hasn't ended yet, or most recent)
+        const currentTerm = terms.filter(t => t.end >= today).pop() || terms[terms.length - 1];
+
+        if (!currentTerm) continue;
+
+        const name = leg.name.official_full || `${leg.name.first} ${leg.name.last}`;
+        const party = currentTerm.party;
+        const state = currentTerm.state;
+
+        const memberInfo = { name, party };
+
+        if (currentTerm.type === 'sen') {
+            if (!senatorsByState[state]) {
+                senatorsByState[state] = [];
+            }
+            senatorsByState[state].push(memberInfo);
+        } else if (currentTerm.type === 'rep') {
+            const district = currentTerm.district;
+            const key = `${state}-${district}`;
+            repsByDistrict[key] = memberInfo;
+        }
+    }
+}
+
+function getPartyAbbreviation(party) {
+    const abbrs = {
+        'Democrat': 'D',
+        'Republican': 'R',
+        'Independent': 'I',
+        'Libertarian': 'L'
+    };
+    return abbrs[party] || party?.charAt(0) || '?';
+}
+
+function formatMember(member) {
+    const partyAbbr = getPartyAbbreviation(member.party);
+    return `${member.name} (${partyAbbr})`;
+}
+
+function buildPopupContent(feature) {
+    if (!congressDataLoaded) {
+        return '<div class="popup-content"><em>Loading congress data...</em></div>';
+    }
+
+    const props = feature.properties;
+    const stateFips = props.STATEFP || '';
+    const districtCode = props.CD118FP || '';
+    const districtName = props.NAMELSAD || 'District';
+
+    // Get state info from FIPS
+    const stateInfo = fipsToState[stateFips] || { abbr: '??', name: `State ${stateFips}` };
+
+    // Convert district code to number (handles "04" -> 4, "00" -> 0)
+    const districtNum = parseInt(districtCode, 10);
+    const lookupKey = `${stateInfo.abbr}-${districtNum}`;
+
+    // Look up legislators
+    const rep = repsByDistrict[lookupKey];
+    const senators = senatorsByState[stateInfo.abbr] || [];
+
+    // Build HTML
+    let html = `
+        <div class="popup-content">
+            <h3>${districtName}</h3>
+            <p class="state-name">${stateInfo.name}</p>
+            <hr>
+            <div class="representative">
+                <strong>Representative:</strong><br>
+                ${rep ? formatMember(rep) : '<em>Vacant</em>'}
+            </div>
+            <div class="senators">
+                <strong>Senators:</strong><br>
+                ${senators.length > 0
+                    ? senators.map(formatMember).join('<br>')
+                    : '<em>Not found</em>'}
+            </div>
+        </div>
+    `;
+
+    return html;
+}
+
+// Load congress data on page load
+loadCongressData();
+
 // Base layer
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap, &copy; CARTO | Data: USGS, Census Bureau'
@@ -114,10 +229,7 @@ fetch('data/congressional_districts.geojson')
         districtsLayer = L.geoJSON(data, {
             style: districtStyle,
             onEachFeature: function(feature, layer) {
-                const props = feature.properties;
-                const name = props.NAMELSAD || props.NAME || 'District';
-                const state = props.STATEFP || '';
-                layer.bindPopup(`<strong>${name}</strong><br>State FIPS: ${state}`);
+                layer.bindPopup(() => buildPopupContent(feature));
             }
         }).addTo(map);
 

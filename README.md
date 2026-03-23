@@ -6,7 +6,10 @@ An interactive web map visualizing USGS geologic hydrogen prospectivity data wit
 
 - Interactive Leaflet map with hydrogen prospectivity layer
 - Congressional district boundaries (118th Congress) overlay
-- Click on any district to see its name and state
+- Click on any district to see:
+  - District name and state
+  - Current US Representative
+  - Both US Senators for that state
 - Toggle layers on/off
 - Spatial analysis to calculate average prospectivity by district
 - USGS official color scheme (green-cyan-blue gradient)
@@ -68,7 +71,7 @@ Open http://localhost:8000 in your browser.
 
 **Map interactions:**
 - Pan and zoom with mouse/touchpad
-- Click on a congressional district to see its info
+- Click on a congressional district to see its representative and senators
 - Toggle layers using the checkboxes in the top-right panel
 
 ### Refresh Data (Optional)
@@ -105,6 +108,7 @@ Results are saved to `data/prospectivity_by_district.csv`.
 - **USGS Hydrogen Prospectivity Maps**: [ArcGIS FeatureServer](https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Naturally_Occurring_Geologic_Hydrogen_Prospectivity_Maps_10_22_2024_WFL1/FeatureServer)
 - **USGS Data Release**: [ScienceBase](https://www.sciencebase.gov/catalog/item/671be1c2d34efed56210dded)
 - **Congressional Districts**: [Census Bureau TIGER/Line](https://www2.census.gov/geo/tiger/GENZ2023/shp/)
+- **Congressional Members**: [unitedstates/congress-legislators](https://github.com/unitedstates/congress-legislators) - Current representatives and senators (119th Congress)
 
 ### Available Hydrogen Layers
 
@@ -138,5 +142,6 @@ The map uses the official USGS 20-class color ramp:
 
 - **U.S. Geological Survey (USGS)** - Hydrogen prospectivity data and methodology
 - **U.S. Census Bureau** - Congressional district boundaries
+- **@unitedstates project** - Congressional legislators data
 - **Leaflet** - Open-source JavaScript mapping library
 - **OpenStreetMap & CARTO** - Base map tiles
