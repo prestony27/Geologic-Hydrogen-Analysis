@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.env
+venv/
+.venv/
+
+# Data files (large)
+*.zip
+*.tif
+*.shp
+*.dbf
+*.shx
+*.prj
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
