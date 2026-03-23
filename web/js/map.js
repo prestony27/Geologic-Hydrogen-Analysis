@@ -87,7 +87,13 @@ function buildPopupContent(feature) {
     const stateInfo = fipsToState[stateFips] || { abbr: '??', name: `State ${stateFips}` };
 
     // Convert district code to number (handles "04" -> 4, "00" -> 0)
-    const districtNum = parseInt(districtCode, 10);
+    let districtNum = parseInt(districtCode, 10);
+
+    // DC uses district code 98 in GeoJSON but 0 in legislators data
+    if (stateInfo.abbr === 'DC' && districtNum === 98) {
+        districtNum = 0;
+    }
+
     const lookupKey = `${stateInfo.abbr}-${districtNum}`;
 
     // Look up legislators
