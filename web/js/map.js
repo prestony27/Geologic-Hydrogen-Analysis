@@ -66,6 +66,35 @@ function districtStyle(feature) {
     };
 }
 
+// Point-in-polygon detection using ray-casting algorithm
+function isPointInPolygon(latlng, layer) {
+    const point = [latlng.lng, latlng.lat];
+    const geom = layer.feature.geometry;
+
+    // Handle both Polygon and MultiPolygon
+    const polygons = geom.type === 'MultiPolygon'
+        ? geom.coordinates
+        : [geom.coordinates];
+
+    for (const polygon of polygons) {
+        if (raycast(point, polygon[0])) return true;
+    }
+    return false;
+}
+
+function raycast(point, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0], yi = ring[i][1];
+        const xj = ring[j][0], yj = ring[j][1];
+        if (((yi > point[1]) !== (yj > point[1])) &&
+            (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
 // Load hydrogen prospectivity data from local GeoJSON
 fetch('data/hydrogen_prospectivity.geojson')
     .then(response => response.json())
@@ -91,9 +120,24 @@ fetch('data/congressional_districts.geojson')
                 layer.bindPopup(`<strong>${name}</strong><br>State FIPS: ${state}`);
             }
         }).addTo(map);
+
+        districtsLayer.bringToFront();
         console.log(`Loaded ${data.features.length} congressional districts`);
     })
     .catch(err => console.error('Error loading district data:', err));
+
+// Map click handler for district interaction (works with transparent fills)
+map.on('click', function(e) {
+    if (!districtsLayer) return;
+
+    // Find district containing the clicked point
+    districtsLayer.eachLayer(function(layer) {
+        // Quick bounds check first, then precise point-in-polygon
+        if (layer.getBounds().contains(e.latlng) && isPointInPolygon(e.latlng, layer)) {
+            layer.openPopup(e.latlng);
+        }
+    });
+});
 
 // Layer toggle controls
 document.getElementById('toggle-hydrogen').addEventListener('change', function(e) {
