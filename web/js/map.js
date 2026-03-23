@@ -3,43 +3,16 @@ const map = L.map('map').setView([39.5, -98.35], 4);
 
 // Base layer
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap, &copy; CARTO'
+    attribution: '&copy; OpenStreetMap, &copy; CARTO | Data: USGS, Census Bureau'
 }).addTo(map);
 
-// USGS Hydrogen Prospectivity Layer (Total Prospectivity)
-const hydrogenLayer = L.esri.featureLayer({
-    url: 'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Naturally_Occurring_Geologic_Hydrogen_Prospectivity_Maps_10_22_2024_WFL1/FeatureServer/6',
-    style: function(feature) {
-        const score = feature.properties.gridcode_float || 0;
-        return {
-            fillColor: getHydrogenColor(score),
-            fillOpacity: 0.85,
-            color: '#555',
-            weight: 0.3
-        };
-    }
-}).addTo(map);
-
-// Congressional Districts Layer (118th Congress)
-const districtsLayer = L.esri.featureLayer({
-    url: 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Legislative/MapServer/0',
-    style: {
-        fillColor: 'transparent',
-        fillOpacity: 0,
-        color: '#333',
-        weight: 1.5,
-        dashArray: '4, 4'
-    },
-    onEachFeature: function(feature, layer) {
-        const props = feature.properties;
-        layer.bindPopup(`<strong>${props.BASENAME || props.NAME}</strong><br>State: ${props.STATE || 'N/A'}`);
-    }
-}).addTo(map);
+// Layer groups
+let hydrogenLayer = null;
+let districtsLayer = null;
 
 // Color scale for hydrogen prospectivity (0-1) - matches USGS official colors
 // Gradient: light green → cyan → dark blue
 function getHydrogenColor(score) {
-    // USGS color ramp (20 classes from their ArcGIS service)
     const colors = [
         [247, 252, 240], // 0.00-0.05
         [237, 248, 231], // 0.05-0.10
@@ -68,19 +41,73 @@ function getHydrogenColor(score) {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
+// Style function for hydrogen layer
+function hydrogenStyle(feature) {
+    const score = feature.properties.gridcode_float || 0;
+    return {
+        fillColor: getHydrogenColor(score),
+        fillOpacity: 0.85,
+        color: '#555',
+        weight: 0.3
+    };
+}
+
+// Style function for congressional districts
+function districtStyle(feature) {
+    return {
+        fillColor: 'transparent',
+        fillOpacity: 0,
+        color: '#333',
+        weight: 1.5,
+        dashArray: '4, 4'
+    };
+}
+
+// Load hydrogen prospectivity data from local GeoJSON
+fetch('data/hydrogen_prospectivity.geojson')
+    .then(response => response.json())
+    .then(data => {
+        hydrogenLayer = L.geoJSON(data, {
+            style: hydrogenStyle
+        }).addTo(map);
+        console.log(`Loaded ${data.features.length} hydrogen features`);
+    })
+    .catch(err => console.error('Error loading hydrogen data:', err));
+
+// Load congressional districts from local GeoJSON
+fetch('data/congressional_districts.geojson')
+    .then(response => response.json())
+    .then(data => {
+        districtsLayer = L.geoJSON(data, {
+            style: districtStyle,
+            onEachFeature: function(feature, layer) {
+                const props = feature.properties;
+                const name = props.NAMELSAD || props.NAME || 'District';
+                const state = props.STATEFP || '';
+                layer.bindPopup(`<strong>${name}</strong><br>State FIPS: ${state}`);
+            }
+        }).addTo(map);
+        console.log(`Loaded ${data.features.length} congressional districts`);
+    })
+    .catch(err => console.error('Error loading district data:', err));
+
 // Layer toggle controls
 document.getElementById('toggle-hydrogen').addEventListener('change', function(e) {
-    if (e.target.checked) {
-        map.addLayer(hydrogenLayer);
-    } else {
-        map.removeLayer(hydrogenLayer);
+    if (hydrogenLayer) {
+        if (e.target.checked) {
+            map.addLayer(hydrogenLayer);
+        } else {
+            map.removeLayer(hydrogenLayer);
+        }
     }
 });
 
 document.getElementById('toggle-districts').addEventListener('change', function(e) {
-    if (e.target.checked) {
-        map.addLayer(districtsLayer);
-    } else {
-        map.removeLayer(districtsLayer);
+    if (districtsLayer) {
+        if (e.target.checked) {
+            map.addLayer(districtsLayer);
+        } else {
+            map.removeLayer(districtsLayer);
+        }
     }
 });

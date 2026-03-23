@@ -5,7 +5,7 @@ __pycache__/
 venv/
 .venv/
 
-# Data files (large/generated)
+# Data files for analysis (large/generated)
 data/
 *.zip
 *.tif
@@ -13,8 +13,10 @@ data/
 *.dbf
 *.shx
 *.prj
-*.geojson
 *.csv
+
+# Keep web/data for the map (don't ignore these)
+!web/data/
 
 # OS
 .DS_Store
